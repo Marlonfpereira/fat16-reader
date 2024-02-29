@@ -3,7 +3,7 @@
 #include <string>
 using namespace std;
 
-class Fat16BootRecord
+class Fat16
 {
 private:
     FILE *imageFile;
@@ -47,15 +47,17 @@ private:
     BootSector boot_record;
     int fatPosition, fat2Position, rootPosition, dataPosition;
 
-    void computeEntry(unsigned int index)
+    void computeAllEntries()
     {
-        for (int i = 0; i < index; i++)
+        for (int i = 0; true; i++)
         {
-            cout << hex << endl << rootPosition + (i * 32) << endl;
             fseek(imageFile, rootPosition + (i * 32), SEEK_SET);
             RootDirectoryEntry entry;
             fread(&entry, sizeof(RootDirectoryEntry), 1, imageFile);
 
+            if (static_cast<int>(entry.filename[0]) == 0x00)
+                break;
+            cout << hex << endl << rootPosition + (i * 32) << endl;
             if (static_cast<int>(entry.filename[0]) == 0xE5) {
                 cout << "Deleted File" << endl;
                 if (entry.attributes == 0x0F)
@@ -73,7 +75,38 @@ private:
             }
 
             cout << "Filename: " << entry.filename << endl;
-            // cout << "Extension: " << entry.ext << endl;
+            cout << "Attributes: " << static_cast<int>(entry.attributes) << endl;
+            cout << dec << "File Size: " << entry.file_size << " bytes" << endl;
+        }
+    }
+
+    void computeEntry(unsigned int position)
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            fseek(imageFile, rootPosition + position + (i * 32), SEEK_SET);
+            RootDirectoryEntry entry;
+            fread(&entry, sizeof(RootDirectoryEntry), 1, imageFile);
+
+            if (static_cast<int>(entry.filename[0]) == 0x00) {
+                cout << "Entrada vazia\n";
+                break;
+            }
+            cout << hex << endl << rootPosition + (i * 32) << endl;
+            if (static_cast<int>(entry.filename[0]) == 0xE5) {
+                cout << "Deleted File" << endl;
+                if (entry.attributes == 0x0F)
+                    cout << "Long Filename" << endl;
+                break;
+            }
+
+            if (entry.attributes == 0x0F)
+            {
+                cout << "Long Filename" << endl;
+                continue;
+            }
+
+            cout << "Filename: " << entry.filename << endl;
             cout << "Attributes: " << static_cast<int>(entry.attributes) << endl;
             cout << dec << "File Size: " << entry.file_size << " bytes" << endl;
         }
@@ -83,7 +116,7 @@ public:
     // Add methods to read the Fat16 Boot Record here
 
     // Constructor to read the boot record from a file
-    Fat16BootRecord(string filename)
+    Fat16(string filename)
     {
         imageFile = fopen(filename.c_str(), "rb");
         fseek(imageFile, 0, SEEK_SET);
@@ -125,17 +158,27 @@ public:
     void rootDirEntriesPrint()
     {
         cout << "/ " << endl;
-        computeEntry(10);
+        computeAllEntries();
+    }
+
+    void checkEntry() {
+        int entry;
+        cout << "Insira o endereço em hexadecimal: ";
+        cin >> hex >> entry >> dec;
+        cout << hex << entry << dec;
+        computeEntry(entry);
     }
 };
 
 int main()
 {
-    Fat16BootRecord boot_record("fat16_1sectorpercluster.img");
+    Fat16 boot_record("fat16_1sectorpercluster.img");
 
     // boot_record.BootRecordPrint();
     // boot_record.positionsPrint();
     boot_record.rootDirEntriesPrint();
+    cout << endl << endl;
+    boot_record.checkEntry();
     // boot_record.printRootDirectoryEntry();
 
     return 0;
