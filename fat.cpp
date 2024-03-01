@@ -84,7 +84,7 @@ private:
     {
         for (int i = 0; i < 2; i++)
         {
-            fseek(imageFile, rootPosition + position + (i * 32), SEEK_SET);
+            fseek(imageFile, position + (i * 32), SEEK_SET);
             RootDirectoryEntry entry;
             fread(&entry, sizeof(RootDirectoryEntry), 1, imageFile);
 
@@ -92,7 +92,7 @@ private:
                 cout << "Entrada vazia\n";
                 break;
             }
-            cout << hex << endl << rootPosition + (i * 32) << endl;
+            cout << hex << endl << position + (i * 32) << endl;
             if (static_cast<int>(entry.filename[0]) == 0xE5) {
                 cout << "Deleted File" << endl;
                 if (entry.attributes == 0x0F)
@@ -109,6 +109,7 @@ private:
             cout << "Filename: " << entry.filename << endl;
             cout << "Attributes: " << static_cast<int>(entry.attributes) << endl;
             cout << dec << "File Size: " << entry.file_size << " bytes" << endl;
+            break;
         }
     }
 
@@ -163,9 +164,8 @@ public:
 
     void checkEntry() {
         int entry;
-        cout << "Insira o endereço em hexadecimal: ";
+        cout << "Insira o endereço em hexadecimal: 0x";
         cin >> hex >> entry >> dec;
-        cout << hex << entry << dec;
         computeEntry(entry);
     }
 };
