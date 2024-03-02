@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdint>
 #include <string>
+#include <list>
 using namespace std;
 
 class Fat16
@@ -57,8 +58,10 @@ private:
 
             if (static_cast<int>(entry.filename[0]) == 0x00)
                 break;
-            cout << hex << endl << rootPosition + (i * 32) << endl;
-            if (static_cast<int>(entry.filename[0]) == 0xE5) {
+            cout << hex << endl
+                 << rootPosition + (i * 32) << endl;
+            if (static_cast<int>(entry.filename[0]) == 0xE5)
+            {
                 cout << "Deleted File" << endl;
                 if (entry.attributes == 0x0F)
                 {
@@ -80,20 +83,23 @@ private:
         }
     }
 
-    void computeEntry(unsigned int position)
+    RootDirectoryEntry computeEntry(unsigned int position)
     {
+        RootDirectoryEntry entry;
         for (int i = 0; i < 2; i++)
         {
             fseek(imageFile, position + (i * 32), SEEK_SET);
-            RootDirectoryEntry entry;
             fread(&entry, sizeof(RootDirectoryEntry), 1, imageFile);
 
-            if (static_cast<int>(entry.filename[0]) == 0x00) {
+            if (static_cast<int>(entry.filename[0]) == 0x00)
+            {
                 cout << "Entrada vazia\n";
                 break;
             }
-            cout << hex << endl << position + (i * 32) << endl;
-            if (static_cast<int>(entry.filename[0]) == 0xE5) {
+            cout << hex << endl
+                 << position + (i * 32) << endl;
+            if (static_cast<int>(entry.filename[0]) == 0xE5)
+            {
                 cout << "Deleted File" << endl;
                 if (entry.attributes == 0x0F)
                     cout << "Long Filename" << endl;
@@ -109,7 +115,42 @@ private:
             cout << "Filename: " << entry.filename << endl;
             cout << "Attributes: " << static_cast<int>(entry.attributes) << endl;
             cout << dec << "File Size: " << entry.file_size << " bytes" << endl;
+            return entry;
             break;
+        }
+        return entry;
+    }
+
+    list<int> accessFat(int position)
+    {
+        RootDirectoryEntry entry = computeEntry(position);
+        unsigned short fatEntry = entry.cluster_low;
+        list<int> fatClusters;
+        do
+        {
+            fatClusters.push_back(fatEntry);
+            fseek(imageFile, fatPosition + (fatEntry * 2), SEEK_SET);
+            fread(&fatEntry, sizeof(unsigned short), 1, imageFile);
+        } while (fatEntry != 0xFFFF);
+        fatClusters.push_back(entry.attributes == 0x10 ? 1 : 0);
+        return fatClusters;
+    }
+
+    void accessData(list<int> fatClusters)
+    {
+        if (fatClusters.back() == 1)
+            cout << "The file is a directory" << endl;
+        else
+            cout << "The file is not a directory" << endl;
+        fatClusters.pop_back();
+        unsigned short sectorsPerCluster = static_cast<int>(boot_record.sectors_per_cluster);
+        unsigned short bytesPerSector = static_cast<int>(boot_record.bytes_per_sector);
+        for (auto fatCluster : fatClusters)
+        {
+            char buffer[bytesPerSector * sectorsPerCluster];
+            fseek(imageFile, dataPosition + (((fatCluster - 2) * sectorsPerCluster)) * bytesPerSector, SEEK_SET);
+            fread(buffer, bytesPerSector * sectorsPerCluster, 1, imageFile);
+            cout << buffer << endl;
         }
     }
 
@@ -162,11 +203,20 @@ public:
         computeAllEntries();
     }
 
-    void checkEntry() {
+    void checkEntry()
+    {
         int entry;
         cout << "Insira o endereço em hexadecimal: 0x";
         cin >> hex >> entry >> dec;
         computeEntry(entry);
+    }
+
+    void openAddress()
+    {
+        int entry;
+        cout << "Insira o endereço em hexadecimal: 0x";
+        cin >> hex >> entry >> dec;
+        accessData(accessFat(entry));
     }
 };
 
@@ -177,8 +227,9 @@ int main()
     // boot_record.BootRecordPrint();
     // boot_record.positionsPrint();
     boot_record.rootDirEntriesPrint();
-    cout << endl << endl;
-    boot_record.checkEntry();
+    cout << endl
+         << endl;
+    boot_record.openAddress();
     // boot_record.printRootDirectoryEntry();
 
     return 0;
