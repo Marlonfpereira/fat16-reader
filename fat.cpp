@@ -198,7 +198,7 @@ public:
 
     void BootRecordPrint()
     {
-        cout << "bootjmp: " << boot_record.bootjmp << endl;
+        cout << "bootjmp: " << boot_record.bootjmp[0] << boot_record.bootjmp[1] << boot_record.bootjmp[2] << endl;
         cout << "oem_name: " << boot_record.oem_name << endl;
         cout << "bytes_per_sector: " << boot_record.bytes_per_sector << endl;
         cout << "sectors_per_cluster: " << static_cast<int>(boot_record.sectors_per_cluster) << endl;
@@ -251,18 +251,24 @@ public:
 int main()
 {
     // Fat16 boot_record("fat16_1sectorpercluster.img");
-    Fat16 boot_record("test.img");
+    string filename;
+    cout << "Insira o caminho da imagem: ";
+    cin >> filename;
+    Fat16 boot_record(filename);
 
     // boot_record.BootRecordPrint();
     // boot_record.positionsPrint();
-    boot_record.rootDirEntriesPrint();
+    // boot_record.rootDirEntriesPrint();
 
     int op = 1;
     while (op)
     {
+        cout << "\n-----------------------\n";
         cout << "0 - Finalizar\n"
              << "1 - Entradas do diretorio raiz\n"
-             << "2 - Acessar endereço\n";
+             << "2 - Acessar endereço\n"
+             << "3 - Boot Record\n";
+        cout << "-----------------------\n";
         cin >> dec >> op;
         switch (op)
         {
@@ -273,6 +279,8 @@ int main()
             break;
         case 2:
             boot_record.openAddress();
+        case 3:
+            boot_record.BootRecordPrint();
         }
     }
 
