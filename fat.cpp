@@ -31,7 +31,8 @@ private:
 
     struct __attribute__((packed)) RootDirectoryEntry
     {
-        unsigned char filename[11];
+        unsigned char filename[8];
+        unsigned char extension[3];
         unsigned char attributes;
         unsigned char reserved;
         unsigned char creation_time_tenths;
@@ -58,14 +59,14 @@ private:
 
             if (static_cast<int>(entry.filename[0]) == 0x00)
                 break;
-            cout << hex << endl
-                 << rootPosition + (i * 32) << endl;
+            // cout << hex << endl
+            //  << position + (i * 32) << endl;
             if (static_cast<int>(entry.filename[0]) == 0xE5)
             {
-                cout << "Deleted File" << endl;
+                // cout << "Deleted File" << endl;
                 if (entry.attributes == 0x0F)
                 {
-                    cout << "Long Filename" << endl;
+                    // cout << "Long Filename" << endl;
                     i++;
                 }
                 continue;
@@ -73,10 +74,12 @@ private:
 
             if (entry.attributes == 0x0F)
             {
-                cout << "Long Filename" << endl;
+                // cout << "Long Filename" << endl;
                 continue;
             }
 
+            cout << hex << endl
+                 << position + (i * 32) << endl;
             cout << "Filename: " << entry.filename << endl;
             cout << "Attributes: " << static_cast<int>(entry.attributes) << endl;
             cout << dec << "File Size: " << entry.file_size << " bytes" << endl;
@@ -100,16 +103,16 @@ private:
                  << position + (i * 32) << endl;
             if (static_cast<int>(entry.filename[0]) == 0xE5)
             {
-                cout << "Deleted File" << endl;
-                if (entry.attributes == 0x0F)
-                    cout << "Long Filename" << endl;
+                cout << "Entrada excluída" << endl;
+                // if (entry.attributes == 0x0F)
+                //     cout << "Long Filename" << endl;
                 break;
             }
 
             if (entry.attributes == 0x0F)
             {
                 cout << "Long Filename" << endl;
-                continue;
+                break;
             }
 
             cout << "Buscando por: " << endl;
@@ -236,7 +239,8 @@ public:
 
 int main()
 {
-    Fat16 boot_record("fat16_1sectorpercluster.img");
+    // Fat16 boot_record("fat16_1sectorpercluster.img");
+    Fat16 boot_record("test.img");
 
     // boot_record.BootRecordPrint();
     // boot_record.positionsPrint();
