@@ -112,7 +112,7 @@ private:
                 continue;
             }
 
-			cout << "Buscando por: " << endl;
+            cout << "Buscando por: " << endl;
             cout << "Filename: " << entry.filename << endl;
             cout << "Attributes: " << static_cast<int>(entry.attributes) << endl;
             cout << dec << "File Size: " << entry.file_size << " bytes" << endl;
@@ -140,27 +140,29 @@ private:
     void accessData(list<int> fatClusters)
     {
         cout << "Conteudo: \n";
-        if (fatClusters.back() == 1) {
+        if (fatClusters.back() == 1)
+        {
             cout << "The file is a directory" << endl;
             fatClusters.pop_back();
-	        unsigned short sectorsPerCluster = static_cast<int>(boot_record.sectors_per_cluster);
-	        unsigned short bytesPerSector = static_cast<int>(boot_record.bytes_per_sector);
-	        for (auto fatCluster : fatClusters)
-	        {
-	            computeAllEntries(dataPosition + (((fatCluster - 2) * sectorsPerCluster)) * bytesPerSector);
-	        }
+            unsigned short sectorsPerCluster = static_cast<int>(boot_record.sectors_per_cluster);
+            unsigned short bytesPerSector = static_cast<int>(boot_record.bytes_per_sector);
+            for (auto fatCluster : fatClusters)
+            {
+                computeAllEntries(dataPosition + (((fatCluster - 2) * sectorsPerCluster)) * bytesPerSector);
+            }
         }
-        else{        
-	        fatClusters.pop_back();
-	        unsigned short sectorsPerCluster = static_cast<int>(boot_record.sectors_per_cluster);
-	        unsigned short bytesPerSector = static_cast<int>(boot_record.bytes_per_sector);
-	        for (auto fatCluster : fatClusters)
-	        {
-	            char buffer[bytesPerSector * sectorsPerCluster];
-	            fseek(imageFile, dataPosition + (((fatCluster - 2) * sectorsPerCluster)) * bytesPerSector, SEEK_SET);
-	            fread(buffer, bytesPerSector * sectorsPerCluster, 1, imageFile);
-	            cout << buffer << endl;
-	        }
+        else
+        {
+            fatClusters.pop_back();
+            unsigned short sectorsPerCluster = static_cast<int>(boot_record.sectors_per_cluster);
+            unsigned short bytesPerSector = static_cast<int>(boot_record.bytes_per_sector);
+            for (auto fatCluster : fatClusters)
+            {
+                char buffer[bytesPerSector * sectorsPerCluster];
+                fseek(imageFile, dataPosition + (((fatCluster - 2) * sectorsPerCluster)) * bytesPerSector, SEEK_SET);
+                fread(buffer, bytesPerSector * sectorsPerCluster, 1, imageFile);
+                cout << buffer << endl;
+            }
         }
     }
 
@@ -211,7 +213,8 @@ public:
     {
         cout << "/ " << endl;
         computeAllEntries(rootPosition);
-        cout << endl << endl;
+        cout << endl
+             << endl;
     }
 
     void checkEntry()
@@ -238,20 +241,24 @@ int main()
     // boot_record.BootRecordPrint();
     // boot_record.positionsPrint();
     boot_record.rootDirEntriesPrint();
-        
+
     int op = 1;
-    while(op) {
-		cout << "0 - Finalizar\n" << "1 - Entradas do diretorio raiz\n" << "2 - Acessar endereço\n";
-		cin >> dec >> op;
-		switch(op) {
-			case 0:
-				return 0;
-			case 1:
-				boot_record.rootDirEntriesPrint();
-				break;
-			case 2:
-				boot_record.openAddress();	
-		}
+    while (op)
+    {
+        cout << "0 - Finalizar\n"
+             << "1 - Entradas do diretorio raiz\n"
+             << "2 - Acessar endereço\n";
+        cin >> dec >> op;
+        switch (op)
+        {
+        case 0:
+            return 0;
+        case 1:
+            boot_record.rootDirEntriesPrint();
+            break;
+        case 2:
+            boot_record.openAddress();
+        }
     }
 
     return 0;
