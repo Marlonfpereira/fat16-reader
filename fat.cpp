@@ -48,11 +48,11 @@ private:
     BootSector boot_record;
     int fatPosition, fat2Position, rootPosition, dataPosition;
 
-    void computeAllEntries()
+    void computeAllEntries(int position)
     {
         for (int i = 0; true; i++)
         {
-            fseek(imageFile, rootPosition + (i * 32), SEEK_SET);
+            fseek(imageFile, position + (i * 32), SEEK_SET);
             RootDirectoryEntry entry;
             fread(&entry, sizeof(RootDirectoryEntry), 1, imageFile);
 
@@ -138,19 +138,28 @@ private:
 
     void accessData(list<int> fatClusters)
     {
-        if (fatClusters.back() == 1)
+        if (fatClusters.back() == 1) {
             cout << "The file is a directory" << endl;
-        else
-            cout << "The file is not a directory" << endl;
-        fatClusters.pop_back();
-        unsigned short sectorsPerCluster = static_cast<int>(boot_record.sectors_per_cluster);
-        unsigned short bytesPerSector = static_cast<int>(boot_record.bytes_per_sector);
-        for (auto fatCluster : fatClusters)
-        {
-            char buffer[bytesPerSector * sectorsPerCluster];
-            fseek(imageFile, dataPosition + (((fatCluster - 2) * sectorsPerCluster)) * bytesPerSector, SEEK_SET);
-            fread(buffer, bytesPerSector * sectorsPerCluster, 1, imageFile);
-            cout << buffer << endl;
+            fatClusters.pop_back();
+	        unsigned short sectorsPerCluster = static_cast<int>(boot_record.sectors_per_cluster);
+	        unsigned short bytesPerSector = static_cast<int>(boot_record.bytes_per_sector);
+	        for (auto fatCluster : fatClusters)
+	        {
+	            computeAllEntries(dataPosition + (((fatCluster - 2) * sectorsPerCluster)) * bytesPerSector);
+	        }
+        }
+        else{        
+	        cout << "The file is not a directory" << endl;
+	        fatClusters.pop_back();
+	        unsigned short sectorsPerCluster = static_cast<int>(boot_record.sectors_per_cluster);
+	        unsigned short bytesPerSector = static_cast<int>(boot_record.bytes_per_sector);
+	        for (auto fatCluster : fatClusters)
+	        {
+	            char buffer[bytesPerSector * sectorsPerCluster];
+	            fseek(imageFile, dataPosition + (((fatCluster - 2) * sectorsPerCluster)) * bytesPerSector, SEEK_SET);
+	            fread(buffer, bytesPerSector * sectorsPerCluster, 1, imageFile);
+	            cout << buffer << endl;
+	        }
         }
     }
 
@@ -200,7 +209,7 @@ public:
     void rootDirEntriesPrint()
     {
         cout << "/ " << endl;
-        computeAllEntries();
+        computeAllEntries(rootPosition);
     }
 
     void checkEntry()
