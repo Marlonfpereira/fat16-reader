@@ -125,11 +125,11 @@ private:
         return entry;
     }
 
-    list<int> accessFat(int position)
+    list<unsigned int> accessFat(int position)
     {
         RootDirectoryEntry entry = computeEntry(position);
         unsigned short fatEntry = entry.cluster_low;
-        list<int> fatClusters;
+        list<unsigned int> fatClusters;
         do
         {
             fatClusters.push_back(fatEntry);
@@ -137,12 +137,15 @@ private:
             fread(&fatEntry, sizeof(unsigned short), 1, imageFile);
         } while (fatEntry != 0xFFFF);
         fatClusters.push_back(entry.attributes == 0x10 ? 1 : 0);
+        fatClusters.push_back(entry.file_size);
         return fatClusters;
     }
 
-    void accessData(list<int> fatClusters)
+    void accessData(list<unsigned int> fatClusters)
     {
         cout << "Conteudo: \n";
+        unsigned int size = fatClusters.back();
+        fatClusters.pop_back();
         if (fatClusters.back() == 1)
         {
             cout << "The file is a directory" << endl;
@@ -159,12 +162,20 @@ private:
             fatClusters.pop_back();
             unsigned short sectorsPerCluster = static_cast<int>(boot_record.sectors_per_cluster);
             unsigned short bytesPerSector = static_cast<int>(boot_record.bytes_per_sector);
+            unsigned short bluster = sectorsPerCluster * bytesPerSector;
+            unsigned int currentSize = 0;
             for (auto fatCluster : fatClusters)
             {
-                char buffer[bytesPerSector * sectorsPerCluster];
                 fseek(imageFile, dataPosition + (((fatCluster - 2) * sectorsPerCluster)) * bytesPerSector, SEEK_SET);
-                fread(buffer, bytesPerSector * sectorsPerCluster, 1, imageFile);
-                cout << buffer << endl;
+                unsigned int clusterSize = 0;
+                do
+                {
+                    char byte;
+                    fread(&byte, sizeof(char), 1, imageFile);
+                    cout << byte;
+                    currentSize++;
+                    clusterSize++;
+                } while (currentSize < size && clusterSize < bluster);
             }
         }
     }
