@@ -181,9 +181,6 @@ private:
     }
 
 public:
-    // Add methods to read the Fat16 Boot Record here
-
-    // Constructor to read the boot record from a file
     Fat16(string filename)
     {
         imageFile = fopen(filename.c_str(), "rb");
@@ -246,19 +243,33 @@ public:
         cin >> hex >> entry >> dec;
         accessData(accessFat(entry));
     }
+
+    void printFirstFile()
+    {
+        for (int i = 0; true; i++)
+        {
+            fseek(imageFile, rootPosition + (i * 32), SEEK_SET);
+            RootDirectoryEntry entry;
+            fread(&entry, sizeof(RootDirectoryEntry), 1, imageFile);
+            if (entry.attributes == 0x20)
+            {
+                accessData(accessFat(rootPosition + (i * 32)));
+                return;
+            }
+        }
+    }
 };
 
 int main()
 {
-    // Fat16 boot_record("fat16_1sectorpercluster.img");
     string filename;
     cout << "Insira o caminho da imagem: ";
     cin >> filename;
     Fat16 boot_record(filename);
 
-    // boot_record.BootRecordPrint();
-    // boot_record.positionsPrint();
-    // boot_record.rootDirEntriesPrint();
+    boot_record.BootRecordPrint();
+    boot_record.rootDirEntriesPrint();
+    boot_record.printFirstFile();
 
     int op = 1;
     while (op)
