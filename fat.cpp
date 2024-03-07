@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <string>
 #include <list>
+#include <vector>
 using namespace std;
 
 class Fat16
@@ -46,6 +47,8 @@ private:
 
     BootSector boot_record;
     int fatPosition, fat2Position, rootPosition, dataPosition;
+    int manual = 0;
+    vector<unsigned int> currentEntries;
 
     void printEntry(DirectoryEntry entry)
     {
@@ -67,11 +70,14 @@ private:
                  << "Arquivo" << endl;
         }
         cout << "Primeiro cluster: 0x" << hex << entry.cluster_low << dec << endl;
-        cout << dec << "Tamanho: " << entry.file_size << " bytes" << endl;
+        cout << dec << "Tamanho: " << entry.file_size << " bytes" << endl
+             << endl;
     }
 
     void computeAllEntries(int position)
     {
+        unsigned short count = 0;
+        currentEntries.clear();
         for (int i = 0; true; i++)
         {
             fseek(imageFile, position + (i * 32), SEEK_SET);
@@ -89,13 +95,21 @@ private:
                 continue;
             }
 
+            if (!manual && static_cast<int>(entry.filename[0]) == 0x2E)
+            {
+                continue;
+            }
+
             if (entry.attributes == 0x0F)
             {
                 continue;
             }
 
-            cout << hex << endl
-                 << position + (i * 32) << endl;
+            cout << ++count << "-";
+            currentEntries.push_back(position + (i * 32));
+            if (manual)
+                cout << hex << "0x" << position + (i * 32) << endl;
+
             printEntry(entry);
         }
     }
@@ -113,8 +127,9 @@ private:
                 cout << "Entrada vazia\n";
                 break;
             }
-            cout << hex << endl
-                 << position + (i * 32) << endl;
+            if (manual)
+                cout << hex << position + (i * 32) << endl;
+
             if (static_cast<int>(entry.filename[0]) == 0xE5)
             {
                 cout << "Entrada excluída" << endl;
@@ -127,7 +142,7 @@ private:
                 break;
             }
 
-            cout << "Buscando por: " << endl;
+            cout << "\nAcessando:\n";
             printEntry(entry);
             return entry;
             break;
@@ -143,37 +158,46 @@ private:
 
         unsigned short fatEntry = entry.cluster_low;
         list<unsigned int> fatClusters;
-        do
-        {
+        if (fatEntry == 0)
             fatClusters.push_back(fatEntry);
-            fseek(imageFile, fatPosition + (fatEntry * 2), SEEK_SET);
-            fread(&fatEntry, sizeof(unsigned short), 1, imageFile);
-        } while (fatEntry != 0xFFFF);
+        else
+            do
+            {
+                fatClusters.push_back(fatEntry);
+                fseek(imageFile, fatPosition + (fatEntry * 2), SEEK_SET);
+                fread(&fatEntry, sizeof(unsigned short), 1, imageFile);
+            } while (fatEntry != 0xFFFF);
+
         fatClusters.push_back(entry.attributes == 0x10 ? 1 : 0);
         fatClusters.push_back(entry.file_size);
         return fatClusters;
     }
 
-    void accessData(list<unsigned int> fatClusters)
+    unsigned int accessData(list<unsigned int> fatClusters)
     {
         if (fatClusters.empty())
-            return;
+            return 0;
         cout << "Conteudo: \n";
         unsigned int size = fatClusters.back();
         fatClusters.pop_back();
-        if (fatClusters.back() == 1)
+        unsigned int isDir = fatClusters.back();
+        fatClusters.pop_back();
+        if (isDir == 1)
         {
-            fatClusters.pop_back();
             unsigned short sectorsPerCluster = static_cast<int>(boot_record.sectors_per_cluster);
             unsigned short bytesPerSector = static_cast<int>(boot_record.bytes_per_sector);
             for (auto fatCluster : fatClusters)
             {
+                if (fatCluster == 0)
+                {
+                    rootDirEntriesPrint();
+                    break;
+                }
                 computeAllEntries(dataPosition + (((fatCluster - 2) * sectorsPerCluster)) * bytesPerSector);
             }
         }
         else
         {
-            fatClusters.pop_back();
             unsigned short sectorsPerCluster = static_cast<int>(boot_record.sectors_per_cluster);
             unsigned short bytesPerSector = static_cast<int>(boot_record.bytes_per_sector);
             unsigned short bluster = sectorsPerCluster * bytesPerSector;
@@ -191,11 +215,13 @@ private:
                     clusterSize++;
                 } while (currentSize < size && clusterSize < bluster);
             }
+            cout << endl;
         }
+        return isDir;
     }
 
 public:
-    Fat16(string filename)
+    Fat16(string filename, string mode)
     {
         imageFile = fopen(filename.c_str(), "rb");
         if (!imageFile)
@@ -203,6 +229,8 @@ public:
 
         fseek(imageFile, 0, SEEK_SET);
         fread(&boot_record, sizeof(BootSector), 1, imageFile);
+        if (mode == "manual")
+            manual = 1;
 
         fatPosition = boot_record.reserved_sector_count * boot_record.bytes_per_sector;
         fat2Position = fatPosition + (boot_record.table_size_16 * boot_record.bytes_per_sector);
@@ -232,19 +260,18 @@ public:
     void positionsPrint()
     {
         cout << "\nPosicoes:\n";
-        cout << hex << "-fatPosition: " << fatPosition << endl;
-        cout << "-fat2Position: " << fat2Position << endl;
-        cout << "-rootPosition: " << rootPosition << endl;
-        cout << "-dataPosition: " << dataPosition << endl;
+        cout << hex << "-fatPosition: 0x" << fatPosition << endl;
+        cout << "-fat2Position: 0x" << fat2Position << endl;
+        cout << "-rootPosition: 0x" << rootPosition << endl;
+        cout << "-dataPosition: 0x" << dataPosition << endl;
         cout << dec;
     }
 
-    void rootDirEntriesPrint()
+    unsigned int rootDirEntriesPrint()
     {
         cout << "\nDiretorio raiz:\n";
         computeAllEntries(rootPosition);
-        cout << endl
-             << endl;
+        return rootPosition;
     }
 
     void checkEntry()
@@ -255,12 +282,46 @@ public:
         computeEntry(entry);
     }
 
-    void openAddress()
+    void openAddress(int position)
     {
-        int entry;
-        cout << "Insira o endereco em hexadecimal: 0x";
-        cin >> hex >> entry >> dec;
-        accessData(accessFat(entry));
+        accessData(accessFat(position));
+    }
+
+    void menu()
+    {
+        unsigned int op, rootDir = rootDirEntriesPrint();
+        unsigned int currentDir = rootDir;
+        do
+        {
+            if (currentDir == rootDir)
+            {
+                cout << "Acessar entrada: (0 para sair)\n";
+                cin >> op;
+                if (!op)
+                    break;
+            }
+            else
+            {
+                cout << "Acessar entrada: (0 para retornar)\n";
+                cin >> op;
+                if (!op)
+                {
+                    currentDir = rootDir;
+                    rootDirEntriesPrint();
+                    cout << "Retornando..." << endl;
+                    continue;
+                }
+            }
+
+            unsigned int selected = currentEntries[op - 1];
+            if (!accessData(accessFat(selected))) {
+                rootDirEntriesPrint();
+                currentDir = rootDir;
+            }
+            else
+                currentDir = selected;
+
+        } while (true);
     }
 
     void printFirstFile()
@@ -270,7 +331,7 @@ public:
             fseek(imageFile, rootPosition + (i * 32), SEEK_SET);
             DirectoryEntry entry;
             fread(&entry, sizeof(DirectoryEntry), 1, imageFile);
-            if (entry.attributes == 0x20)
+            if (entry.attributes == 0x20 && static_cast<int>(entry.filename[0]) != 0xE5)
             {
                 accessData(accessFat(rootPosition + (i * 32)));
                 return;
@@ -279,41 +340,57 @@ public:
     }
 };
 
-int main()
+int main(int argc, char *argv[])
 {
+    string mode;
+    if (argc > 1)
+        mode = argv[1];
     string filename;
     cout << "Insira o caminho da imagem: ";
     cin >> filename;
-    Fat16 boot_record(filename);
+    Fat16 boot_record(filename, mode);
 
     boot_record.BootRecordPrint();
-    boot_record.rootDirEntriesPrint();
     boot_record.printFirstFile();
 
-    int op = 1;
-    while (op)
+    if (mode == "manual")
     {
-        cout << "\n-----------------------\n";
-        cout << "0 - Finalizar\n"
-             << "1 - Entradas do diretorio raiz\n"
-             << "2 - Acessar endereco\n"
-             << "3 - Boot Record\n";
-        cout << "-----------------------\n";
-        cin >> dec >> op;
-        switch (op)
+        int op = 1;
+        while (op)
         {
-        case 0:
-            return 0;
-        case 1:
-            boot_record.rootDirEntriesPrint();
-            break;
-        case 2:
-            boot_record.openAddress();
-            break;
-        case 3:
-            boot_record.BootRecordPrint();
-            break;
+            cout << "\n-----------------------\n";
+            cout << "0 - Finalizar\n"
+                 << "1 - Entradas do diretorio raiz\n"
+                 << "2 - Acessar endereco\n"
+                 << "3 - Boot Record\n"
+                 << "4 - Posicoes\n";
+            cout << "-----------------------\n";
+            cin >> dec >> op;
+            switch (op)
+            {
+            case 0:
+                return 0;
+            case 1:
+                boot_record.rootDirEntriesPrint();
+                break;
+            case 2:
+                int position;
+                cout << "Insira o endereco em hexadecimal: 0x";
+                cin >> hex >> position >> dec;
+                boot_record.openAddress(position);
+                break;
+            case 3:
+                boot_record.BootRecordPrint();
+                break;
+            case 4:
+                boot_record.positionsPrint();
+                break;
+            }
         }
+    }
+    else
+    {
+        boot_record.menu();
     }
 
     return 0;
