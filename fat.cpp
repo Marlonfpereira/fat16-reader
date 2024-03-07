@@ -1,3 +1,4 @@
+// Leitor de imagens FAT16 feito por Marlon Fabichacki Pereira para a matéria de Sistemas Operacionais
 #include <iostream>
 #include <cstdint>
 #include <string>
