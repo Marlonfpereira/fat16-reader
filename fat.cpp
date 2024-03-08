@@ -1,4 +1,5 @@
 // Leitor de imagens FAT16 feito por Marlon Fabichacki Pereira para a matéria de Sistemas Operacionais
+// Parâmetros: manual (inserção de endereços manualmente) e noPrint (ocultar a entrada inicial padrão)
 #include <iostream>
 #include <cstdint>
 #include <string>
@@ -315,7 +316,8 @@ public:
             }
 
             unsigned int selected = currentEntries[op - 1];
-            if (!accessData(accessFat(selected))) {
+            if (!accessData(accessFat(selected)))
+            {
                 rootDirEntriesPrint();
                 currentDir = rootDir;
             }
@@ -343,18 +345,23 @@ public:
 
 int main(int argc, char *argv[])
 {
-    string mode;
-    if (argc > 1)
-        mode = argv[1];
+    list<string> params;
+    for (short i = 0; i < argc - 1; i++)
+        params.push_back(argv[i + 1]);
+    if (params.size() == 0)
+        params.push_back("placeholder");
+    params.sort();
+
     string filename;
     cout << "Insira o caminho da imagem: ";
     cin >> filename;
-    Fat16 boot_record(filename, mode);
+    Fat16 boot_record(filename, params.front());
 
     boot_record.BootRecordPrint();
-    boot_record.printFirstFile();
+    if (params.back() != "noPrint")
+        boot_record.printFirstFile();
 
-    if (mode == "manual")
+    if (params.front() == "manual")
     {
         int op = 1;
         while (op)
